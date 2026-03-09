@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { LogIn, LogOut, LayoutDashboard, MessageSquare, ShieldCheck, TrendingUp, Zap, Globe } from "lucide-react";
+import { LogIn, LogOut, LayoutDashboard, MessageSquare, ShieldCheck, TrendingUp, Zap, Globe, Trophy } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 const Navbar: React.FC = () => {
@@ -47,6 +47,10 @@ const Navbar: React.FC = () => {
               <Link to="/stats" className="flex items-center gap-1 text-sm font-medium text-neutral-600 hover:text-orange-600 transition-colors">
                 <TrendingUp className="h-4 w-4" />
                 {t('stats')}
+              </Link>
+              <Link to="/tournaments" className="flex items-center gap-1 text-sm font-medium text-neutral-600 hover:text-orange-600 transition-colors">
+                <Trophy className="h-4 w-4" />
+                Torneos
               </Link>
               <Link to="/dashboard" className="flex items-center gap-1 text-sm font-medium text-neutral-600 hover:text-orange-600 transition-colors">
                 <LayoutDashboard className="h-4 w-4" />

@@ -10,7 +10,7 @@ const { Pool } = pg;
 
 // Import local libs (ensure paths match your repo structure)
 // Note: You might need to adjust these imports if they rely on other files
-// import { getDeepSeek, DeepSeekService } from "./src/lib/deepseek";
+import { getDeepSeek, DeepSeekService } from "./src/lib/deepseek";
 // import { getPriceUSD } from "./src/lib/pricing";
 
 dotenv.config();
@@ -72,6 +72,30 @@ app.post("/api/events", async (req, res) => {
   } catch (err) {
     console.error("DB Error:", err);
     res.status(500).json({ error: "Failed to save event" });
+  }
+});
+
+// AI Analyst API
+app.post("/api/ia/analyze", async (req, res) => {
+  try {
+    const { prompt, mode, matchData } = req.body;
+    const deepSeek = getDeepSeek();
+    
+    let systemPrompt = "You are HoopsAI, a professional basketball tactical analyst.";
+    if (mode === "support") {
+      systemPrompt = "You are HoopsAI Support, a helpful assistant for the HoopsAI application. Help users learn how to use the app, like recording matches, exporting data, and managing rosters.";
+    }
+
+    // Add match context if available
+    const contextPrompt = matchData && Object.keys(matchData).length > 0 
+      ? `Context (Current Match Data): ${JSON.stringify(matchData)}\n\nUser Question: ${prompt}`
+      : prompt;
+
+    const response = await deepSeek.requestCompletion(contextPrompt, systemPrompt);
+    res.json(response);
+  } catch (error: any) {
+    console.error("AI Error:", error);
+    res.status(500).json({ error: "Failed to get AI response", message: error.message });
   }
 });
 

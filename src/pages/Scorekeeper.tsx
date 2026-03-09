@@ -30,14 +30,14 @@ const Scorekeeper: React.FC = () => {
   const [timeLeft, setTimeLeft] = useState(600); // 10 minutes in seconds
   const [isRunning, setIsRunning] = useState(false);
   const [events, setEvents] = useState<MatchEvent[]>([]);
-  const [homePlayers] = useState<Player[]>([
+  const [homePlayers, setHomePlayers] = useState<Player[]>([
     { id: "h1", name: "J. Smith", number: "23", position: "G" },
     { id: "h2", name: "A. Johnson", number: "15", position: "F" },
     { id: "h3", name: "M. Brown", number: "0", position: "G" },
     { id: "h4", name: "D. Davis", number: "34", position: "C" },
     { id: "h5", name: "K. Thompson", number: "11", position: "F" },
   ]);
-  const [awayPlayers] = useState<Player[]>([
+  const [awayPlayers, setAwayPlayers] = useState<Player[]>([
     { id: "a1", name: "L. James", number: "6", position: "F" },
     { id: "a2", name: "S. Curry", number: "30", position: "G" },
     { id: "a3", name: "K. Durant", number: "7", position: "F" },
@@ -46,6 +46,32 @@ const Scorekeeper: React.FC = () => {
   ]);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<"home" | "away" | null>(null);
+
+  // Add Player Modal State
+  const [isAddPlayerModalOpen, setIsAddPlayerModalOpen] = useState(false);
+  const [addingToTeam, setAddingToTeam] = useState<"home" | "away" | null>(null);
+  const [newPlayerName, setNewPlayerName] = useState("");
+  const [newPlayerNumber, setNewPlayerNumber] = useState("");
+  const [newPlayerPosition, setNewPlayerPosition] = useState("G");
+
+  const handleAddPlayer = () => {
+    if (!newPlayerName || !newPlayerNumber) return;
+    const newPlayer: Player = {
+      id: `new_${Date.now()}`,
+      name: newPlayerName,
+      number: newPlayerNumber,
+      position: newPlayerPosition,
+    };
+    if (addingToTeam === "home") {
+      setHomePlayers([...homePlayers, newPlayer]);
+    } else {
+      setAwayPlayers([...awayPlayers, newPlayer]);
+    }
+    setIsAddPlayerModalOpen(false);
+    setNewPlayerName("");
+    setNewPlayerNumber("");
+    setNewPlayerPosition("G");
+  };
 
   const timerRef = useRef<any>(null);
 
@@ -152,9 +178,18 @@ const Scorekeeper: React.FC = () => {
   return (
     <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-neutral-100">
       {/* Left Sidebar: Roster */}
-      <aside className="w-80 flex-col border-r border-neutral-200 bg-white p-4 hidden lg:flex">
+      <aside className="w-80 flex-col border-r border-neutral-200 bg-white p-4 hidden lg:flex overflow-y-auto">
         <div className="mb-6">
-          <h2 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-4">Home Roster</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-bold text-neutral-400 uppercase tracking-wider">Home Roster</h2>
+            <button 
+              onClick={() => { setAddingToTeam("home"); setIsAddPlayerModalOpen(true); }} 
+              className="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+              title="Add Home Player"
+            >
+              <UserPlus className="h-3 w-3" />
+            </button>
+          </div>
           <div className="space-y-2">
             {homePlayers.map((p) => (
               <button
@@ -176,7 +211,16 @@ const Scorekeeper: React.FC = () => {
           </div>
         </div>
         <div>
-          <h2 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-4">Away Roster</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-bold text-neutral-400 uppercase tracking-wider">Away Roster</h2>
+            <button 
+              onClick={() => { setAddingToTeam("away"); setIsAddPlayerModalOpen(true); }} 
+              className="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+              title="Add Away Player"
+            >
+              <UserPlus className="h-3 w-3" />
+            </button>
+          </div>
           <div className="space-y-2">
             {awayPlayers.map((p) => (
               <button
@@ -344,6 +388,66 @@ const Scorekeeper: React.FC = () => {
           </div>
         </div>
       </main>
+
+      {/* Add Player Modal */}
+      {isAddPlayerModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h3 className="mb-4 text-xl font-bold text-neutral-900">Add Player to {addingToTeam === "home" ? "Home" : "Away"} Team</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-700">Name</label>
+                <input
+                  type="text"
+                  value={newPlayerName}
+                  onChange={(e) => setNewPlayerName(e.target.value)}
+                  className="w-full rounded-xl border border-neutral-200 px-4 py-2 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                  placeholder="e.g. M. Jordan"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-neutral-700">Number</label>
+                  <input
+                    type="text"
+                    value={newPlayerNumber}
+                    onChange={(e) => setNewPlayerNumber(e.target.value)}
+                    className="w-full rounded-xl border border-neutral-200 px-4 py-2 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                    placeholder="e.g. 23"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-neutral-700">Position</label>
+                  <select
+                    value={newPlayerPosition}
+                    onChange={(e) => setNewPlayerPosition(e.target.value)}
+                    className="w-full rounded-xl border border-neutral-200 px-4 py-2 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 bg-white"
+                  >
+                    <option value="G">Guard (G)</option>
+                    <option value="F">Forward (F)</option>
+                    <option value="C">Center (C)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => setIsAddPlayerModalOpen(false)}
+                className="rounded-xl px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddPlayer}
+                disabled={!newPlayerName || !newPlayerNumber}
+                className="rounded-xl bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-500 disabled:opacity-50"
+              >
+                Add Player
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
