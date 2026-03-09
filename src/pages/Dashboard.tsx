@@ -3,9 +3,10 @@ import { useAuth } from "../context/AuthContext";
 import { db } from "../lib/firebase";
 import { collection, query, where, getDocs, orderBy, limit } from "firebase/firestore";
 import { motion } from "motion/react";
-import { LayoutDashboard, MessageSquare, CreditCard, Settings, TrendingUp, Clock, Zap, Globe } from "lucide-react";
+import { LayoutDashboard, MessageSquare, CreditCard, Settings, TrendingUp, Clock, Zap, Globe, Users, Plus, Star, UserMinus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getPriceUSD } from "../lib/pricing";
+import { Player } from "../lib/types";
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -13,6 +14,9 @@ const Dashboard: React.FC = () => {
   const [stats, setStats] = useState({ totalMatches: 0, totalEvents: 0, plan: "Free" });
   const [recentMatches, setRecentMatches] = useState<any[]>([]);
   const [regionPrice, setRegionPrice] = useState(15);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [isAddingPlayer, setIsAddingPlayer] = useState(false);
+  const [newPlayer, setNewPlayer] = useState({ name: "", number: "", position: "G" });
 
   useEffect(() => {
     if (!user) return;
@@ -25,6 +29,11 @@ const Dashboard: React.FC = () => {
       const recentQ = query(q, orderBy("createdAt", "desc"), limit(5));
       const recentSnapshot = await getDocs(recentQ);
       setRecentMatches(recentSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+
+      // Fetch Roster
+      const rosterQ = query(collection(db, "players"), where("userId", "==", user.uid));
+      const rosterSnapshot = await getDocs(rosterQ);
+      setPlayers(rosterSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player)));
     };
 
     fetchStats();
@@ -48,6 +57,80 @@ const Dashboard: React.FC = () => {
       console.error("Stripe error:", error);
     }
   };
+
+  const handleAddPlayer = async () => {
+    if (!user || !newPlayer.name || !newPlayer.number) return;
+    if (players.length >= 24) return alert("Roster full (Max 24 players)");
+    
+    // Auto-assign as starter/bench if slots available, else inactive
+    const startersCount = players.filter(p => p.isStarter).length;
+    const benchCount = players.filter(p => p.isActive && !p.isStarter).length;
+    
+    let isStarter = false;
+    let isActive = false;
+    
+    if (startersCount < 5) { isStarter = true; isActive = true; }
+    else if (benchCount < 7) { isStarter = false; isActive = true; }
+
+    try {
+      const { addDoc, collection } = await import("firebase/firestore");
+      const docRef = await addDoc(collection(db, "players"), {
+        ...newPlayer,
+        userId: user.uid,
+        isActive,
+        isStarter
+      });
+      setPlayers([...players, { id: docRef.id, ...newPlayer, isActive, isStarter } as Player]);
+      setNewPlayer({ name: "", number: "", position: "G" });
+      setIsAddingPlayer(false);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const togglePlayerStatus = async (player: Player) => {
+    const startersCount = players.filter(p => p.isStarter).length;
+    const activeCount = players.filter(p => p.isActive).length;
+
+    let newIsStarter = player.isStarter;
+    let newIsActive = player.isActive;
+
+    if (player.isStarter) {
+      // Demote to bench
+      newIsStarter = false;
+      newIsActive = true;
+    } else if (player.isActive && !player.isStarter) {
+      // Demote to inactive
+      newIsActive = false;
+      newIsStarter = false;
+    } else {
+      // Promote from inactive
+      if (startersCount < 5) { newIsStarter = true; newIsActive = true; }
+      else if (activeCount < 12) { newIsStarter = false; newIsActive = true; }
+      else return alert("Game roster is full (12 players max). Demote someone first.");
+    }
+
+    try {
+      const { doc, updateDoc } = await import("firebase/firestore");
+      await updateDoc(doc(db, "players", player.id), { isActive: newIsActive, isStarter: newIsStarter });
+      setPlayers(players.map(p => p.id === player.id ? { ...p, isActive: newIsActive, isStarter: newIsStarter } : p));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const deletePlayer = async (id: string) => {
+    try {
+      const { doc, deleteDoc } = await import("firebase/firestore");
+      await deleteDoc(doc(db, "players", id));
+      setPlayers(players.filter(p => p.id !== id));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const activePlayers = players.filter(p => p.isActive);
+  const startersCount = players.filter(p => p.isStarter).length;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
@@ -103,6 +186,51 @@ const Dashboard: React.FC = () => {
               ) : (
                 <p className="py-4 text-sm text-neutral-500">No recent matches found.</p>
               )}
+            </div>
+          </div>
+
+          {/* Roster Management Section */}
+          <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-bold text-neutral-900 flex items-center gap-2"><Users className="h-5 w-5 text-orange-600"/> My Team Roster</h2>
+                <p className="text-xs text-neutral-500">Database: {players.length}/24 | Game Day: {activePlayers.length}/12 (Starters: {startersCount}/5)</p>
+              </div>
+              <button onClick={() => setIsAddingPlayer(!isAddingPlayer)} disabled={players.length >= 24} className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100 text-orange-600 hover:bg-orange-200 disabled:opacity-50">
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
+
+            {isAddingPlayer && (
+              <div className="mb-4 bg-neutral-50 p-4 rounded-xl border border-neutral-200 flex gap-2">
+                <input type="text" placeholder="Name" value={newPlayer.name} onChange={e => setNewPlayer({...newPlayer, name: e.target.value})} className="flex-1 rounded-lg border px-3 py-1.5 text-sm" />
+                <input type="text" placeholder="#" value={newPlayer.number} onChange={e => setNewPlayer({...newPlayer, number: e.target.value})} className="w-16 rounded-lg border px-3 py-1.5 text-sm" />
+                <select value={newPlayer.position} onChange={e => setNewPlayer({...newPlayer, position: e.target.value})} className="rounded-lg border px-3 py-1.5 text-sm bg-white">
+                  <option value="G">G</option><option value="F">F</option><option value="C">C</option>
+                </select>
+                <button onClick={handleAddPlayer} className="px-4 py-1.5 bg-neutral-900 text-white text-sm font-bold rounded-lg hover:bg-neutral-800">Add</button>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-2">
+              {players.map(p => (
+                <div key={p.id} className={`flex items-center justify-between p-3 border rounded-xl ${p.isStarter ? 'border-orange-500 bg-orange-50' : p.isActive ? 'border-blue-500 bg-blue-50' : 'border-neutral-200 bg-white opacity-60'}`}>
+                  <div className="flex items-center gap-3">
+                    <span className="w-6 h-6 rounded bg-black/5 text-black/60 flex items-center justify-center text-xs font-bold">{p.number}</span>
+                    <div>
+                      <p className="text-sm font-bold text-neutral-900 leading-tight">{p.name}</p>
+                      <p className="text-[10px] uppercase font-bold text-neutral-500">{p.position} • {p.isStarter ? 'Starter' : p.isActive ? 'Bench' : 'Inactive'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => togglePlayerStatus(p)} title="Change Role" className={`p-1.5 rounded-lg ${p.isStarter ? 'bg-orange-500 text-white' : p.isActive ? 'bg-blue-500 text-white' : 'bg-neutral-200 text-neutral-500'}`}>
+                      <Star className="h-3 w-3" />
+                    </button>
+                    <button onClick={() => deletePlayer(p.id)} title="Remove Player" className="p-1.5 rounded-lg text-red-500 hover:bg-red-50"><UserMinus className="h-3 w-3"/></button>
+                  </div>
+                </div>
+              ))}
+              {players.length === 0 && <p className="text-sm text-neutral-500 col-span-2 text-center py-4">No players in database. Add up to 24.</p>}
             </div>
           </div>
         </div>

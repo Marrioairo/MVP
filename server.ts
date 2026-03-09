@@ -69,6 +69,34 @@ app.post("/api/events", async (req, res) => {
     console.log("New Event Saved to Postgres:", event);
     broadcastEvent(event);
     res.status(201).json({ status: "ok" });
+
+    // Proactive AI Trigger (Non-blocking)
+    if (["TOV", "PF"].includes(event.type) && event.matchId) {
+      pool.query(
+        "SELECT data FROM events WHERE data::text LIKE $1",
+        [`%"matchId":"${event.matchId}"%`]
+      ).then(async (result) => {
+        let count = 0;
+        result.rows.forEach(row => {
+          const d = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
+          if (d.type === event.type && d.team === event.team) count++;
+        });
+
+        // Thresholds
+        if (event.type === 'TOV' && count >= 10 && count % 5 === 0) {
+           const deepSeek = getDeepSeek();
+           const aiPrompt = `Team ${event.team === 'home' ? 'Home' : 'Away'} just committed their ${count}th turnover. As an expert basketball coach, provide a very short (1 sentence) tactical advice to slow the pace and improve passing.`;
+           const response = await deepSeek.requestCompletion(aiPrompt, "You are an expert basketball coach AI providing live tactical advice.");
+           broadcastEvent({ type: "AI_SUGGESTION", message: response, team: event.team });
+        } else if (event.type === 'PF' && count >= 10 && count % 5 === 0) {
+           const deepSeek = getDeepSeek();
+           const aiPrompt = `Team ${event.team === 'home' ? 'Home' : 'Away'} just committed their ${count}th foul. Give a 1 sentence defensive adjustment advice to avoid fouling.`;
+           const response = await deepSeek.requestCompletion(aiPrompt, "You are an expert basketball coach AI providing live tactical advice.");
+           broadcastEvent({ type: "AI_SUGGESTION", message: response, team: event.team });
+        }
+      }).catch(e => console.error("Proactive AI trigger error:", e));
+    }
+
   } catch (err) {
     console.error("DB Error:", err);
     res.status(500).json({ error: "Failed to save event" });

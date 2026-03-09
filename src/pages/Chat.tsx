@@ -33,9 +33,37 @@ const Chat: React.FC = () => {
       where("userId", "==", user.uid),
       orderBy("timestamp", "asc")
     );
-    return onSnapshot(q, (snapshot) => {
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       setMessages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message)));
     });
+    return () => unsubscribe();
+  }, [user]);
+
+  // Listen for proactive AI suggestions from the Scorekeeper/Backend
+  useEffect(() => {
+    if (!user) return;
+    const eventSource = new EventSource("/api/events/sse");
+    eventSource.onmessage = async (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === "AI_SUGGESTION") {
+          const content = typeof data.message === "string" 
+            ? data.message 
+            : data.message?.choices?.[0]?.message?.content || "Tactical adjustment needed.";
+          
+          await addDoc(collection(db, "chats"), {
+            userId: user.uid,
+            role: "assistant",
+            content: `🚨 **Proactive Tactical Alert (${data.team.toUpperCase()} TEAM):**\n\n${content}`,
+            mode: "analyst",
+            timestamp: Timestamp.now(),
+          });
+        }
+      } catch (e) {
+        console.error("Error parsing SSE in Chat:", e);
+      }
+    };
+    return () => eventSource.close();
   }, [user]);
 
   useEffect(() => {
