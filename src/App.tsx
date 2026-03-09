@@ -8,6 +8,7 @@ import Compare from "./pages/Compare";
 import Scorekeeper from "./pages/Scorekeeper";
 import Stats from "./pages/Stats";
 import Tournament from "./pages/Tournament";
+import Scouting from "./pages/Scouting";
 import Navbar from "./components/Navbar";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -32,6 +33,7 @@ export default function App() {
             <Route path="/scorekeeper" element={<ProtectedRoute><Scorekeeper /></ProtectedRoute>} />
             <Route path="/stats" element={<ProtectedRoute><Stats /></ProtectedRoute>} />
             <Route path="/tournaments" element={<ProtectedRoute><Tournament /></ProtectedRoute>} />
+            <Route path="/scouting" element={<ProtectedRoute><Scouting /></ProtectedRoute>} />
           </Routes>
         </div>
       </Router>

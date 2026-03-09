@@ -70,8 +70,8 @@ app.post("/api/events", async (req, res) => {
     broadcastEvent(event);
     res.status(201).json({ status: "ok" });
 
-    // Proactive AI Trigger (Non-blocking)
-    if (["TOV", "PF"].includes(event.type) && event.matchId) {
+    // Proactive AI Coach Triggers (Non-blocking)
+    if (["TOV", "PF", "OREB", "AST"].includes(event.type) && event.matchId) {
       pool.query(
         "SELECT data FROM events WHERE data::text LIKE $1",
         [`%"matchId":"${event.matchId}"%`]
@@ -82,16 +82,24 @@ app.post("/api/events", async (req, res) => {
           if (d.type === event.type && d.team === event.team) count++;
         });
 
-        // Thresholds
+        // Thresholds based on Advanced Patch
+        const deepSeek = getDeepSeek();
+        const aiSystem = "You are an expert basketball coach AI providing live tactical advice. Respond in 1 brief sentence.";
+        let aiPrompt = null;
+
         if (event.type === 'TOV' && count >= 10 && count % 5 === 0) {
-           const deepSeek = getDeepSeek();
-           const aiPrompt = `Team ${event.team === 'home' ? 'Home' : 'Away'} just committed their ${count}th turnover. As an expert basketball coach, provide a very short (1 sentence) tactical advice to slow the pace and improve passing.`;
-           const response = await deepSeek.requestCompletion(aiPrompt, "You are an expert basketball coach AI providing live tactical advice.");
-           broadcastEvent({ type: "AI_SUGGESTION", message: response, team: event.team });
+           aiPrompt = `Team ${event.team} committed ${count} turnovers. Suggest slowing the offense and improving passing.`;
         } else if (event.type === 'PF' && count >= 10 && count % 5 === 0) {
-           const deepSeek = getDeepSeek();
-           const aiPrompt = `Team ${event.team === 'home' ? 'Home' : 'Away'} just committed their ${count}th foul. Give a 1 sentence defensive adjustment advice to avoid fouling.`;
-           const response = await deepSeek.requestCompletion(aiPrompt, "You are an expert basketball coach AI providing live tactical advice.");
+           aiPrompt = `Team ${event.team} committed ${count} fouls. Suggest a defensive adjustment to avoid fouling.`;
+        } else if (event.type === 'OREB' && count >= 8 && count % 4 === 0) {
+           // O-REB is usually bad for the defensive team, but here we message the team that got it as 'good job' or warn the opponent
+           aiPrompt = `Team ${event.team} grabbed ${count} offensive rebounds. Suggest the opponent needs stronger box out positioning.`;
+        } else if (event.type === 'AST' && count >= 15 && count % 5 === 0) {
+           aiPrompt = `Team ${event.team} has ${count} assists. Acknowledge excellent ball movement.`;
+        }
+
+        if (aiPrompt) {
+           const response = await deepSeek.requestCompletion(aiPrompt, aiSystem);
            broadcastEvent({ type: "AI_SUGGESTION", message: response, team: event.team });
         }
       }).catch(e => console.error("Proactive AI trigger error:", e));
