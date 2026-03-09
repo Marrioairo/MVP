@@ -1,7 +1,7 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
-import path from "url";
+import path from "path";
 import { fileURLToPath } from "url";
 import Stripe from "stripe";
 import pg from 'pg';
@@ -86,8 +86,6 @@ async function startServer() {
       res.status(500).json({ status: "error", db: "disconnected" });
     }
   });
-
-  // (Include other endpoints as they were in your server.ts)
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
