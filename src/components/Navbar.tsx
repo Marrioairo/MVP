@@ -31,7 +31,7 @@ const Navbar: React.FC = () => {
             className="flex items-center gap-1 text-sm font-medium text-neutral-600 hover:text-orange-600 transition-colors"
           >
             <Globe className="h-4 w-4" />
-            {i18n.language.toUpperCase()}
+            {i18n.language?.toUpperCase() || 'EN'}
           </button>
 
           {user ? (
