@@ -1,7 +1,17 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged, User, signOut, signInWithPopup, signInAnonymously } from "firebase/auth";
 import { auth, googleProvider } from "../lib/firebase";
-import { Capacitor } from "@capacitor/core";
+
+// Safe native platform detection — works on Vercel (web) AND Capacitor WebView (Android/iOS)
+// Avoids a static import of @capacitor/core which breaks Vite/Vercel SSG builds
+const isNativePlatform = (): boolean => {
+  try {
+    return typeof (window as any)?.Capacitor?.isNativePlatform === "function"
+      && (window as any).Capacitor.isNativePlatform();
+  } catch {
+    return false;
+  }
+};
 
 interface AuthContextType {
   user: User | null;
@@ -28,7 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       // In native Android/iOS WebViews, Google strictly blocks OAuth popups and redirects.
       // To give users immediate access to the functional app, we use Firebase Anonymous Login.
-      if (Capacitor.isNativePlatform()) {
+      if (isNativePlatform()) {
         console.log("Native platform detected. Bypassing Google Auth block with Anonymous Login.");
         await signInAnonymously(auth);
       } else {
@@ -38,12 +48,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error("Login failed:", error);
       // Fallback just in case standard login fails on a weird browser
-      if (!Capacitor.isNativePlatform()) {
-         try {
-           await signInAnonymously(auth);
-         } catch (fallbackError) {
-           console.error("Fallback anonymous login also failed:", fallbackError);
-         }
+      if (!isNativePlatform()) {
+        try {
+          await signInAnonymously(auth);
+        } catch (fallbackError) {
+          console.error("Fallback anonymous login also failed:", fallbackError);
+        }
       }
     }
   };
