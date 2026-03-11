@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { LogIn, LogOut, LayoutDashboard, MessageSquare, ShieldCheck, TrendingUp, Zap, Globe, Trophy, BarChart3 } from "lucide-react";
+import { LogIn, LogOut, LayoutDashboard, MessageSquare, ShieldCheck, TrendingUp, Zap, Globe, Trophy, BarChart3, Calendar, DollarSign } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 const Navbar: React.FC = () => {
@@ -36,13 +36,17 @@ const Navbar: React.FC = () => {
 
           {user ? (
             <>
-              <Link to="/scorekeeper" className="flex items-center gap-1 text-sm font-medium text-neutral-600 hover:text-orange-600 transition-colors">
+              <Link to="/create-game" className="flex items-center gap-1 text-sm font-medium text-neutral-600 hover:text-orange-600 transition-colors">
                 <Zap className="h-4 w-4" />
-                {t('scorekeeper')}
+                {t('create_game') || "New Game"}
               </Link>
               <Link to="/chat" className="flex items-center gap-1 text-sm font-medium text-neutral-600 hover:text-orange-600 transition-colors">
                 <MessageSquare className="h-4 w-4" />
                 {t('ai_analyst')}
+              </Link>
+              <Link to="/agenda" className="flex items-center gap-1 text-sm font-medium text-neutral-600 hover:text-orange-600 transition-colors">
+                <Calendar className="h-4 w-4" />
+                {t('agenda') || "Agenda"}
               </Link>
               <Link to="/stats" className="flex items-center gap-1 text-sm font-medium text-neutral-600 hover:text-orange-600 transition-colors">
                 <TrendingUp className="h-4 w-4" />
@@ -51,6 +55,14 @@ const Navbar: React.FC = () => {
               <Link to="/tournaments" className="flex items-center gap-1 text-sm font-medium text-neutral-600 hover:text-orange-600 transition-colors">
                 <Trophy className="h-4 w-4" />
                 Torneos
+              </Link>
+              <Link to="/teams" className="flex items-center gap-1 text-sm font-medium text-neutral-600 hover:text-orange-600 transition-colors">
+                <ShieldCheck className="h-4 w-4" />
+                Equipos
+              </Link>
+              <Link to="/finances" className="flex items-center gap-1 text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors">
+                <DollarSign className="h-4 w-4" />
+                Finanzas
               </Link>
               <Link to="/scouting" className="flex items-center gap-1 text-sm font-medium text-neutral-600 hover:text-orange-600 transition-colors">
                 <BarChart3 className="h-4 w-4" />
@@ -67,14 +79,16 @@ const Navbar: React.FC = () => {
                 </Link>
               )}
               <div className="h-4 w-px bg-neutral-200 mx-1" />
-              <button
-                onClick={logout}
-                className="flex items-center gap-1 text-sm font-medium text-neutral-600 hover:text-red-600 transition-colors"
-              >
-                <LogOut className="h-4 w-4" />
-                Logout
-              </button>
-              <img src={user.photoURL || ""} alt={user.displayName || ""} className="h-8 w-8 rounded-full border border-neutral-200" referrerPolicy="no-referrer" />
+              <div className="relative group">
+                <Link to="/profile" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                  <img src={user.photoURL || ""} alt={user.displayName || ""} className="h-8 w-8 rounded-full border border-neutral-200" referrerPolicy="no-referrer" />
+                </Link>
+                {/* Simple dropdown indicator */}
+                <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-neutral-200 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all flex flex-col overflow-hidden">
+                  <Link to="/profile" className="px-4 py-3 text-sm font-bold text-neutral-700 hover:bg-neutral-50 border-b border-neutral-100">My Profile</Link>
+                  <Link to="/settings" className="px-4 py-3 text-sm font-bold text-neutral-700 hover:bg-neutral-50 text-left">Settings</Link>
+                </div>
+              </div>
             </>
           ) : (
             <button

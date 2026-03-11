@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence, GoogleAuthProvider } from "firebase/auth";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -12,10 +12,10 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-console.log("Initializing Firebase with config:", {
-  hasApiKey: !!import.meta.env.VITE_FIREBASE_API_KEY,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID
-});
+// Only log config status in development (never expose projectId in production)
+if (import.meta.env.DEV) {
+  console.log("Firebase init check:", { hasApiKey: !!import.meta.env.VITE_FIREBASE_API_KEY });
+}
 
 let app;
 try {
@@ -24,7 +24,12 @@ try {
   console.error("Firebase init failed:", error);
 }
 
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const auth = initializeAuth(app, {
+  persistence: [indexedDBLocalPersistence, browserLocalPersistence]
+});
+
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+});
 export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();

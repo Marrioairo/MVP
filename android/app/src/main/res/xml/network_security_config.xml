@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config>
+        <domain includeSubdomains="true">TU-DOMINIO-AQUI.com</domain>
+        <pin-set expiration="2025-01-01">
+            <pin digest="SHA-256">TU-PIN-SHA256-AQUI</pin>
+            <!-- Backup Pin por si el primario caduca -->
+            <pin digest="SHA-256">TU-PIN-BACKUP-SHA256-AQUI</pin>
+        </pin-set>
+    </domain-config>
+</network-security-config>

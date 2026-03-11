@@ -1,1 +1,25 @@
 @import "tailwindcss";
+
+html, body {
+  /* Elimina el rebote web (scroll bounce) al llegar al borde de la pantalla */
+  overscroll-behavior-y: none;
+  overscroll-behavior-x: none;
+  
+  /* Comportamiento nativo: Deshabilita selección de texto, lupa y menú de doble toque */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  
+  /* Bloquear zoom accidental */
+  touch-action: pan-y;
+  
+  /* Que el fondo de la app nativa sea siempre de este color */
+  background-color: #fafafa;
+}
+
+/* Permitir escribir en los campos de texto normales */
+input, textarea {
+  -webkit-user-select: auto;
+  user-select: auto;
+}

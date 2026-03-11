@@ -13,12 +13,14 @@ const Dashboard: React.FC = () => {
   const { t } = useTranslation();
   const [stats, setStats] = useState({ totalMatches: 0, totalEvents: 0, plan: "Free" });
   const [recentMatches, setRecentMatches] = useState<any[]>([]);
+  const [topLineups, setTopLineups] = useState<any[]>([]);
   const [regionPrice, setRegionPrice] = useState(15);
+  const [teams, setTeams] = useState<any[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [isAddingPlayer, setIsAddingPlayer] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
-  const [newPlayer, setNewPlayer] = useState({ name: "", number: "", position: "G" });
-  const [editForm, setEditForm] = useState({ name: "", number: "", position: "G" });
+  const [newPlayer, setNewPlayer] = useState({ name: "", number: "", position: "G", height: "", weight: "", age: "", teamId: "" });
+  const [editForm, setEditForm] = useState({ name: "", number: "", position: "G", height: "", weight: "", age: "", teamId: "" });
 
   useEffect(() => {
     if (!user) return;
@@ -35,7 +37,28 @@ const Dashboard: React.FC = () => {
       // Fetch Roster
       const rosterQ = query(collection(db, "players"), where("userId", "==", user.uid));
       const rosterSnapshot = await getDocs(rosterQ);
-      setPlayers(rosterSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player)));
+      const fetchedPlayers = rosterSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player));
+      setPlayers(fetchedPlayers);
+
+      // Fetch Teams
+      const teamsQ = query(collection(db, "teams_v2"), where("userId", "==", user.uid));
+      const teamsSnapshot = await getDocs(teamsQ);
+      setTeams(teamsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+
+      // Fetch Lineup Analytics
+      try {
+          const { calculateLineupStats } = await import("../lib/analytics");
+          let allEvents: any[] = [];
+          for (const matchDoc of recentSnapshot.docs) { 
+             const eventsQ = collection(db, "matches", matchDoc.id, "events");
+             const eventsSnap = await getDocs(eventsQ);
+             allEvents.push(...eventsSnap.docs.map(e => e.data()));
+          }
+          const lineups = calculateLineupStats(allEvents, "home", fetchedPlayers);
+          setTopLineups(lineups.slice(0, 3));
+      } catch (e) {
+          console.error("Lineup stats error:", e);
+      }
     };
 
     fetchStats();
@@ -61,8 +84,11 @@ const Dashboard: React.FC = () => {
   };
 
   const handleAddPlayer = async () => {
-    if (!user || !newPlayer.name || !newPlayer.number) return;
-    if (players.length >= 24) return alert("Roster full (Max 24 players)");
+    if (!user || !newPlayer.name || !newPlayer.number || !newPlayer.teamId) return alert("Name, number, and team are required.");
+    
+    // Validate team roster limit (max 24)
+    const teamPlayersCount = players.filter(p => p.teamId === newPlayer.teamId).length;
+    if (teamPlayersCount >= 24) return alert("Roster full for this team (Max 24 players)");
     
     // Auto-assign as starter/bench if slots available, else inactive
     const startersCount = players.filter(p => p.isStarter).length;
@@ -83,7 +109,7 @@ const Dashboard: React.FC = () => {
         isStarter
       });
       setPlayers([...players, { id: docRef.id, ...newPlayer, isActive, isStarter } as Player]);
-      setNewPlayer({ name: "", number: "", position: "G" });
+      setNewPlayer({ name: "", number: "", position: "G", height: "", weight: "", age: "", teamId: newPlayer.teamId });
       setIsAddingPlayer(false);
     } catch (err) {
       console.error(err);
@@ -98,7 +124,11 @@ const Dashboard: React.FC = () => {
       await updateDoc(doc(db, "players", editingPlayer.id), {
         name: editForm.name,
         number: editForm.number,
-        position: editForm.position
+        position: editForm.position,
+        height: editForm.height,
+        weight: editForm.weight,
+        age: editForm.age,
+        teamId: editForm.teamId
       });
       setPlayers(players.map(p => p.id === editingPlayer.id ? { ...p, ...editForm } : p));
       setEditingPlayer(null);
@@ -222,13 +252,26 @@ const Dashboard: React.FC = () => {
             </div>
 
             {isAddingPlayer && (
-              <div className="mb-4 bg-neutral-50 p-4 rounded-xl border border-neutral-200 flex gap-2">
-                <input type="text" placeholder="Name" value={newPlayer.name} onChange={e => setNewPlayer({...newPlayer, name: e.target.value})} className="flex-1 rounded-lg border px-3 py-1.5 text-sm" />
-                <input type="text" placeholder="#" value={newPlayer.number} onChange={e => setNewPlayer({...newPlayer, number: e.target.value})} className="w-16 rounded-lg border px-3 py-1.5 text-sm" />
-                <select value={newPlayer.position} onChange={e => setNewPlayer({...newPlayer, position: e.target.value})} className="rounded-lg border px-3 py-1.5 text-sm bg-white">
-                  <option value="G">G</option><option value="F">F</option><option value="C">C</option>
-                </select>
-                <button onClick={handleAddPlayer} className="px-4 py-1.5 bg-neutral-900 text-white text-sm font-bold rounded-lg hover:bg-neutral-800">Add</button>
+              <div className="mb-4 bg-neutral-50 p-4 rounded-xl border border-neutral-200 flex flex-col gap-3">
+                <div className="flex gap-2">
+                  <input type="text" placeholder="Name" value={newPlayer.name} onChange={e => setNewPlayer({...newPlayer, name: e.target.value})} className="flex-1 rounded-lg border px-3 py-1.5 text-sm" />
+                  <input type="text" placeholder="#" value={newPlayer.number} onChange={e => setNewPlayer({...newPlayer, number: e.target.value})} className="w-16 rounded-lg border px-3 py-1.5 text-sm" />
+                  <select value={newPlayer.position} onChange={e => setNewPlayer({...newPlayer, position: e.target.value})} className="rounded-lg border px-3 py-1.5 text-sm bg-white">
+                    <option value="G">G</option><option value="F">F</option><option value="C">C</option>
+                  </select>
+                </div>
+                <div className="flex gap-2">
+                  <input type="text" placeholder="Height (e.g. 6ft 2in)" value={newPlayer.height} onChange={e => setNewPlayer({...newPlayer, height: e.target.value})} className="flex-1 rounded-lg border px-3 py-1.5 text-sm" />
+                  <input type="text" placeholder="Weight (lbs)" value={newPlayer.weight} onChange={e => setNewPlayer({...newPlayer, weight: e.target.value})} className="w-24 rounded-lg border px-3 py-1.5 text-sm" />
+                  <input type="number" placeholder="Age" value={newPlayer.age} onChange={e => setNewPlayer({...newPlayer, age: e.target.value})} className="w-20 rounded-lg border px-3 py-1.5 text-sm" />
+                </div>
+                <div className="flex gap-2 items-center">
+                  <select value={newPlayer.teamId} onChange={e => setNewPlayer({...newPlayer, teamId: e.target.value})} className="flex-1 rounded-lg border px-3 py-1.5 text-sm bg-white" required>
+                     <option value="" disabled>Select Team...</option>
+                     {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                  <button onClick={handleAddPlayer} disabled={!newPlayer.teamId || !newPlayer.name || !newPlayer.number} className="px-6 py-1.5 bg-neutral-900 text-white text-sm font-bold rounded-lg hover:bg-neutral-800 disabled:opacity-50">Add</button>
+                </div>
               </div>
             )}
 
@@ -238,12 +281,12 @@ const Dashboard: React.FC = () => {
                   <div className="flex items-center gap-3">
                     <span className="w-6 h-6 rounded bg-black/5 text-black/60 flex items-center justify-center text-xs font-bold">{p.number}</span>
                     <div>
-                      <p className="text-sm font-bold text-neutral-900 leading-tight">{p.name}</p>
-                      <p className="text-[10px] uppercase font-bold text-neutral-500">{p.position} • {p.isStarter ? 'Starter' : p.isActive ? 'Bench' : 'Inactive'}</p>
+                      <p className="text-sm font-bold text-neutral-900 leading-tight">{p.name} {p.teamId ? <span className="text-neutral-400 font-normal">({teams.find(t => t.id === p.teamId)?.name || "No Team"})</span> : ""}</p>
+                      <p className="text-[10px] uppercase font-bold text-neutral-500">{p.position} • {p.height ? `${p.height}` : '-'} • {p.weight ? `${p.weight}lbs` : '-'} • Age {p.age || '-'} • {p.isStarter ? 'Starter' : p.isActive ? 'Bench' : 'Inactive'}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button onClick={() => { setEditingPlayer(p); setEditForm({ name: p.name, number: p.number, position: p.position }); }} title="Edit Player" className="p-1.5 rounded-lg text-neutral-500 hover:bg-neutral-100">
+                    <button onClick={() => { setEditingPlayer(p); setEditForm({ name: p.name, number: p.number, position: p.position, height: p.height || "", weight: p.weight || "", age: p.age || "", teamId: p.teamId || "" }); }} title="Edit Player" className="p-1.5 rounded-lg text-neutral-500 hover:bg-neutral-100">
                       <Pencil className="h-3 w-3" />
                     </button>
                     <button onClick={() => togglePlayerStatus(p)} title="Change Role" className={`p-1.5 rounded-lg ${p.isStarter ? 'bg-orange-500 text-white' : p.isActive ? 'bg-blue-500 text-white' : 'bg-neutral-200 text-neutral-500'}`}>
@@ -258,8 +301,39 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Subscription / Upgrade */}
+        {/* Subscription / Upgrade & Analytics */}
         <div className="space-y-6">
+          
+          {/* Top Lineups (Quintetos Ideales) */}
+          <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-bold text-neutral-900 mb-4 flex items-center gap-2">
+              <Star className="h-5 w-5 text-orange-500" /> {t("quintetos_ideales") || "Quintetos Ideales"}
+            </h2>
+            <div className="space-y-4">
+               {topLineups.length > 0 ? (
+                   topLineups.map((lineup, i) => (
+                       <div key={i} className="p-3 bg-neutral-50 rounded-xl border border-neutral-100">
+                           <div className="flex justify-between items-center mb-2">
+                               <span className="text-xs font-black text-neutral-400 uppercase tracking-widest">Lineup #{i+1}</span>
+                               <span className={`text-sm font-black ${lineup.netRating >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                                   {lineup.netRating >= 0 ? '+' : ''}{lineup.netRating}
+                               </span>
+                           </div>
+                           <div className="flex flex-wrap gap-1">
+                               {lineup.lineupNames.map((name: string, idx: number) => (
+                                   <span key={idx} className="text-[10px] font-bold bg-white border border-neutral-200 px-1.5 py-0.5 rounded text-neutral-600">
+                                       {name}
+                                   </span>
+                               ))}
+                           </div>
+                       </div>
+                   ))
+               ) : (
+                   <p className="text-sm text-neutral-400 italic">Play games to generate lineup data.</p>
+               )}
+            </div>
+          </div>
+
           <div className="rounded-2xl bg-orange-600 p-6 text-white shadow-lg">
             <h2 className="text-lg font-bold">HoopsAI Pro</h2>
             <p className="mt-2 text-sm text-orange-100">Get advanced tactical insights, unlimited match recording, and regional pricing.</p>
@@ -328,6 +402,29 @@ const Dashboard: React.FC = () => {
                   <label className="text-xs font-bold text-neutral-400 uppercase">Position</label>
                   <select value={editForm.position} onChange={e => setEditForm({...editForm, position: e.target.value})} className="w-full mt-1 px-4 py-2 rounded-xl border border-neutral-200 focus:border-orange-500 transition-colors bg-white">
                     <option value="G">G</option><option value="F">F</option><option value="C">C</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-neutral-400 uppercase">Height</label>
+                  <input type="text" value={editForm.height} onChange={e => setEditForm({...editForm, height: e.target.value})} className="w-full mt-1 px-4 py-2 rounded-xl border border-neutral-200 focus:border-orange-500 transition-colors" placeholder="e.g. 6ft 2in" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-neutral-400 uppercase">Weight</label>
+                  <input type="text" value={editForm.weight} onChange={e => setEditForm({...editForm, weight: e.target.value})} className="w-full mt-1 px-4 py-2 rounded-xl border border-neutral-200 focus:border-orange-500 transition-colors" placeholder="lbs" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-neutral-400 uppercase">Age</label>
+                  <input type="number" value={editForm.age} onChange={e => setEditForm({...editForm, age: e.target.value})} className="w-full mt-1 px-4 py-2 rounded-xl border border-neutral-200 focus:border-orange-500 transition-colors" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-neutral-400 uppercase">Team Assignment</label>
+                  <select value={editForm.teamId} onChange={e => setEditForm({...editForm, teamId: e.target.value})} className="w-full mt-1 px-4 py-2 rounded-xl border border-neutral-200 focus:border-orange-500 transition-colors bg-white">
+                    <option value="" disabled>Select Team...</option>
+                    {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                 </div>
               </div>

@@ -6,3 +6,12 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# ─── Android / Capacitor sensitive files ─────────────────────────────────────
+android/app/google-services.json
+android/app/release/
+android/app/*.jks
+android/app/*.keystore
+android/local.properties
+android/secrets.properties
+ios/App/GoogleService-Info.plist

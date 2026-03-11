@@ -5,6 +5,10 @@ export interface Player {
   position: string;
   isActive: boolean; // True si está convocado para el partido (max 12)
   isStarter: boolean; // True si es titular (max 5)
+  height?: string;
+  weight?: string;
+  age?: string;
+  teamId?: string;
 }
 
 export interface MatchEvent {

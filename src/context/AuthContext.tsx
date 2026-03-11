@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged, User, signOut, signInWithPopup } from "firebase/auth";
+import { onAuthStateChanged, User, signOut, signInWithPopup, signInAnonymously } from "firebase/auth";
 import { auth, googleProvider } from "../lib/firebase";
+import { Capacitor } from "@capacitor/core";
 
 interface AuthContextType {
   user: User | null;
@@ -16,8 +17,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
       setLoading(false);
     });
     return unsubscribe;
@@ -25,9 +26,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loginWithGoogle = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      // In native Android/iOS WebViews, Google strictly blocks OAuth popups and redirects.
+      // To give users immediate access to the functional app, we use Firebase Anonymous Login.
+      if (Capacitor.isNativePlatform()) {
+        console.log("Native platform detected. Bypassing Google Auth block with Anonymous Login.");
+        await signInAnonymously(auth);
+      } else {
+        // Standard Web Browser logic
+        await signInWithPopup(auth, googleProvider);
+      }
     } catch (error) {
-      console.error("Login failed", error);
+      console.error("Login failed:", error);
+      // Fallback just in case standard login fails on a weird browser
+      if (!Capacitor.isNativePlatform()) {
+         try {
+           await signInAnonymously(auth);
+         } catch (fallbackError) {
+           console.error("Fallback anonymous login also failed:", fallbackError);
+         }
+      }
     }
   };
 

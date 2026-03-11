@@ -5,6 +5,7 @@ import { collection, addDoc, query, where, getDocs, Timestamp, doc, updateDoc, a
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Trophy, Plus, Settings, UserPlus, Camera, X, Check } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { useTranslation } from "react-i18next";
 
 interface Player { id: string; name: string; number: string; }
 
@@ -19,6 +20,7 @@ interface TournamentData {
 
 const Tournament: React.FC = () => {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [tournaments, setTournaments] = useState<TournamentData[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [newName, setNewName] = useState("");
@@ -28,6 +30,7 @@ const Tournament: React.FC = () => {
   const [enrollingTournament, setEnrollingTournament] = useState<TournamentData | null>(null);
   const [availablePlayers, setAvailablePlayers] = useState<Player[]>([]);
   const [selectedPlayerId, setSelectedPlayerId] = useState("");
+  const [photoOption, setPhotoOption] = useState<"real" | "generic">("real");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
 
@@ -114,6 +117,7 @@ const Tournament: React.FC = () => {
       setEnrollingTournament(null);
       setSelectedPlayerId("");
       setUploadFile(null);
+      setPhotoOption("real");
       alert("Player enrolled successfully! 🏀");
     } catch (error) {
       console.error("Enrollment error:", error);
@@ -127,24 +131,24 @@ const Tournament: React.FC = () => {
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-black tracking-tight text-neutral-900">Tournaments</h1>
-          <p className="mt-2 text-neutral-500">Manage your leagues and knockout events.</p>
+          <h1 className="text-3xl font-black tracking-tight text-neutral-900">{t("tournaments")}</h1>
+          <p className="mt-2 text-neutral-500">{t("tournaments_desc")}</p>
         </div>
         <button
           onClick={() => setIsCreating(true)}
           className="flex items-center gap-2 rounded-xl bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-500 transition-all"
         >
           <Plus className="h-4 w-4" />
-          Create Tournament
+          {t("create_tournament")}
         </button>
       </div>
 
       {isCreating && (
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 text-xl font-bold">New Tournament</h2>
+          <h2 className="mb-4 text-xl font-bold">{t("new_tournament")}</h2>
           <form onSubmit={handleCreate} className="space-y-4 max-w-md">
             <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700">Tournament Name</label>
+              <label className="mb-1 block text-sm font-medium text-neutral-700">{t("tournament_name")}</label>
               <input
                 type="text"
                 value={newName}
@@ -155,14 +159,14 @@ const Tournament: React.FC = () => {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700">Format</label>
+              <label className="mb-1 block text-sm font-medium text-neutral-700">{t("format")}</label>
               <select
                 value={newFormat}
                 onChange={(e) => setNewFormat(e.target.value as "knockout" | "league")}
                 className="w-full rounded-xl border border-neutral-200 px-4 py-2 focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500 bg-white"
               >
-                <option value="knockout">Knockout (Bracket)</option>
-                <option value="league">League (Standings)</option>
+                <option value="knockout">{t("knockout")}</option>
+                <option value="league">{t("league")}</option>
               </select>
             </div>
             <div className="flex gap-3 pt-2">
@@ -171,13 +175,13 @@ const Tournament: React.FC = () => {
                 onClick={() => setIsCreating(false)}
                 className="rounded-xl px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-100"
               >
-                Cancel
+                {t("cancel")}
               </button>
               <button
                 type="submit"
                 className="rounded-xl bg-neutral-900 px-4 py-2 text-sm font-bold text-white hover:bg-neutral-800"
               >
-                Save
+                {t("save")}
               </button>
             </div>
           </form>
@@ -189,8 +193,8 @@ const Tournament: React.FC = () => {
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-orange-100 text-orange-600">
             <Trophy className="h-8 w-8" />
           </div>
-          <h3 className="text-lg font-bold text-neutral-900">No tournaments yet</h3>
-          <p className="mt-1 max-w-sm text-neutral-500">Create your first tournament to start tracking teams, brackets, and standings.</p>
+          <h3 className="text-lg font-bold text-neutral-900">{t("no_tournaments_yet")}</h3>
+          <p className="mt-1 max-w-sm text-neutral-500">{t("create_first_tournament")}</p>
         </div>
       ) : (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -213,12 +217,12 @@ const Tournament: React.FC = () => {
                   </span>
                 </div>
                 <h3 className="mb-2 text-xl font-bold text-neutral-900">{tournament.name}</h3>
-                <p className="text-sm text-neutral-500">{tournament.teams.length} Teams Enrolled</p>
+                <p className="text-sm text-neutral-500">{tournament.teams.length} {t("teams_enrolled")}</p>
                 
                 <div className="mt-6 flex items-center gap-2">
                   <button onClick={() => setEnrollingTournament(tournament)} className="flex items-center justify-center gap-2 flex-1 rounded-xl bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-500 transition-all shadow-sm">
                     <UserPlus className="h-4 w-4" />
-                    Enroll
+                    {t("enroll")}
                   </button>
                   <button className="flex items-center justify-center rounded-xl bg-neutral-100 p-2 text-neutral-600 hover:bg-neutral-200 transition-colors">
                     <Settings className="h-5 w-5" />
@@ -238,7 +242,7 @@ const Tournament: React.FC = () => {
             <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="w-full max-w-lg bg-white rounded-[32px] p-8 shadow-2xl overflow-hidden relative">
               <div className="flex justify-between items-center mb-6">
                 <div>
-                  <h3 className="text-2xl font-black text-neutral-900 leading-tight">Enroll Player</h3>
+                  <h3 className="text-2xl font-black text-neutral-900 leading-tight">{t("enroll_player")}</h3>
                   <p className="text-sm text-neutral-500 font-medium">{enrollingTournament.name}</p>
                 </div>
                 <button onClick={() => setEnrollingTournament(null)} className="p-2 hover:bg-neutral-100 rounded-full transition-colors"><X className="h-5 w-5"/></button>
@@ -247,9 +251,9 @@ const Tournament: React.FC = () => {
               <div className="space-y-6">
                 {/* Player Selection */}
                 <div>
-                  <label className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-2 block">Choose Athlete</label>
+                  <label className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-2 block">{t("choose_athlete")}</label>
                   <select value={selectedPlayerId} onChange={e => setSelectedPlayerId(e.target.value)} className="w-full rounded-2xl border-2 border-neutral-100 bg-neutral-50 px-4 py-3 outline-none focus:border-orange-500 focus:bg-white transition-all font-bold text-neutral-700">
-                    <option value="">Select from Roster...</option>
+                    <option value="">{t("select_from_roster")}</option>
                     {availablePlayers.map(p => (
                       <option key={p.id} value={p.id}>{p.number} - {p.name}</option>
                     ))}
@@ -258,33 +262,51 @@ const Tournament: React.FC = () => {
 
                 {/* Photo Upload Area */}
                 <div>
-                  <label className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-2 block">Player Photo (Real Image)</label>
-                  <div className="relative group">
-                    <input type="file" accept="image/*" onChange={e => setUploadFile(e.target.files?.[0] || null)} className="hidden" id="photo-upload" />
-                    <label htmlFor="photo-upload" className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-neutral-200 rounded-2xl cursor-pointer hover:border-orange-500 hover:bg-orange-50/50 transition-all overflow-hidden bg-neutral-50">
-                      {uploadFile ? (
-                        <div className="flex flex-col items-center">
-                          <Check className="h-8 w-8 text-emerald-500 mb-2" />
-                          <span className="text-sm font-bold text-neutral-600">{uploadFile.name}</span>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center">
-                          <Camera className="h-8 w-8 text-neutral-400 mb-2 group-hover:text-orange-500 transition-colors" />
-                          <span className="text-sm font-bold text-neutral-500 group-hover:text-orange-500">Tap to Upload Photo</span>
-                        </div>
-                      )}
-                    </label>
+                  <div className="flex bg-neutral-100 rounded-xl p-1 mb-4">
+                    <button onClick={() => setPhotoOption("real")} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${photoOption === 'real' ? 'bg-white shadow-sm text-orange-600' : 'text-neutral-500 hover:text-neutral-700'}`}>{t("real_photo")}</button>
+                    <button onClick={() => { setPhotoOption("generic"); setUploadFile(null); }} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${photoOption === 'generic' ? 'bg-white shadow-sm text-neutral-900' : 'text-neutral-500 hover:text-neutral-700'}`}>{t("generic_avatar")}</button>
                   </div>
+
+                  {photoOption === "real" ? (
+                    <div>
+                      <label className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-2 block">{t("upload_image")}</label>
+                      <div className="relative group">
+                        <input type="file" accept="image/*" onChange={e => setUploadFile(e.target.files?.[0] || null)} className="hidden" id="photo-upload" />
+                        <label htmlFor="photo-upload" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-neutral-200 rounded-2xl cursor-pointer hover:border-orange-500 hover:bg-orange-50/50 transition-all overflow-hidden bg-neutral-50">
+                          {uploadFile ? (
+                            <div className="flex flex-col items-center">
+                              <Check className="h-8 w-8 text-emerald-500 mb-2" />
+                              <span className="text-sm font-bold text-neutral-600">{uploadFile.name}</span>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center">
+                              <Camera className="h-8 w-8 text-neutral-400 mb-2 group-hover:text-orange-500 transition-colors" />
+                              <span className="text-sm font-bold text-neutral-500 group-hover:text-orange-500">{t("tap_to_upload")}</span>
+                            </div>
+                          )}
+                        </label>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-2 block">{t("generic_photo_selected")}</label>
+                      <div className="flex flex-col items-center justify-center w-full h-32 border-2 border-neutral-100 rounded-2xl bg-neutral-50">
+                        <div className="h-16 w-16 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center shadow-inner border-2 border-white">
+                          <UserPlus className="h-6 w-6" />
+                        </div>
+                        <span className="text-xs font-bold text-neutral-400 mt-2">{t("no_photo_required")}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <button onClick={handleEnrollPlayer} disabled={!selectedPlayerId || isUploading} className={`w-full py-4 rounded-2xl text-white font-black text-lg shadow-lg flex items-center justify-center gap-2 transition-all ${isUploading ? 'bg-neutral-300' : 'bg-neutral-900 hover:bg-black active:scale-[0.98]'}`}>
                   {isUploading ? (
                     <>
                       <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Uploading...
                     </>
                   ) : (
-                    <>Register Player</>
+                    <>{t("register_player")}</>
                   )}
                 </button>
               </div>
@@ -292,7 +314,7 @@ const Tournament: React.FC = () => {
               {/* List of already enrolled players */}
               {enrollingTournament.enrolledPlayers && enrollingTournament.enrolledPlayers.length > 0 && (
                 <div className="mt-8 pt-6 border-t border-neutral-100">
-                  <h4 className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-4">Enrolled Players ({enrollingTournament.enrolledPlayers.length})</h4>
+                  <h4 className="text-xs font-black text-neutral-400 uppercase tracking-widest mb-4">{t("enrolled_players")} ({enrollingTournament.enrolledPlayers.length})</h4>
                   <div className="grid grid-cols-4 gap-3">
                     {enrollingTournament.enrolledPlayers.map(p => (
                       <div key={p.id} className="flex flex-col items-center gap-1">
